@@ -32,7 +32,7 @@ const updateMeetingTranscript = async (meetingId, transcript) => {
       },
     },
     {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }
   );
