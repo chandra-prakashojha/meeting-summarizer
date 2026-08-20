@@ -40,9 +40,33 @@ const updateMeetingTranscript = async (meetingId, transcript) => {
   return meeting;
 };
 
+const updateMeetingAnalysis = async (meetingId, analysis) => {
+  const meeting = await Meeting.findByIdAndUpdate(
+    meetingId,
+    {
+      $set: {
+        summary: analysis.summary,
+        keyTopics: analysis.keyTopics,
+        keyDecisions: analysis.keyDecisions,
+        actionItems: analysis.actionItems,
+        status: "COMPLETED",
+        "error.code": null,
+        "error.message": null,
+      },
+    },
+    {
+      returnDocument: "after",
+      runValidators: true,
+    }
+  );
+
+  return meeting;
+};
+
 module.exports = {
   createMeeting,
   findAllMeetings,
   findMeetingById,
   updateMeetingTranscript,
+  updateMeetingAnalysis,
 };

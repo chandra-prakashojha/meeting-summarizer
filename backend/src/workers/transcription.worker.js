@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const { Worker } = require("bullmq");
@@ -12,6 +13,8 @@ const {
 const {
   updateMeetingTranscript,
 } = require("../repositories/meeting.repository");
+
+const summarizationQueue = require("../queues/summarization.queue");
 
 const startWorker = async () => {
   await connectDatabase();
@@ -29,12 +32,14 @@ const startWorker = async () => {
         );
       }
 
+      // 1. Transcribe audio
       const transcript = await transcribeAudio(audioPath);
 
       console.log(
         `Transcription completed for meeting: ${meetingId}`
       );
 
+      // 2. Save transcript to MongoDB
       const updatedMeeting =
         await updateMeetingTranscript(
           meetingId,
@@ -51,9 +56,23 @@ const startWorker = async () => {
         `Transcript saved for meeting: ${meetingId}`
       );
 
+      // 3. Add summarization job
+      const summarizationJob =
+        await summarizationQueue.add(
+          "summarize-meeting",
+          {
+            meetingId,
+          }
+        );
+
+      console.log(
+        `Summarization job ${summarizationJob.id} added for meeting: ${meetingId}`
+      );
+
       return {
         meetingId,
         transcript,
+        summarizationJobId: summarizationJob.id,
       };
     },
     {
