@@ -20,8 +20,29 @@ const findMeetingById = async (meetingId) => {
   return meeting;
 };
 
+const updateMeetingTranscript = async (meetingId, transcript) => {
+  const meeting = await Meeting.findByIdAndUpdate(
+    meetingId,
+    {
+      $set: {
+        transcript,
+        status: "TRANSCRIBED",
+        "error.code": null,
+        "error.message": null,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  return meeting;
+};
+
 module.exports = {
   createMeeting,
   findAllMeetings,
   findMeetingById,
+  updateMeetingTranscript,
 };
