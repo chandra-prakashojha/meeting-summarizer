@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const { Worker } = require("bullmq");
@@ -10,8 +9,11 @@ const {
   transcribeAudio,
 } = require("../services/transcription.service");
 
+
 const {
   updateMeetingTranscript,
+  updateMeetingFailure,
+  updateMeetingStatus,
 } = require("../repositories/meeting.repository");
 
 const summarizationQueue = require("../queues/summarization.queue");
@@ -39,7 +41,7 @@ const startWorker = async () => {
         `Transcription completed for meeting: ${meetingId}`
       );
 
-      // 2. Save transcript to MongoDB
+      // 2. Save transcript
       const updatedMeeting =
         await updateMeetingTranscript(
           meetingId,
@@ -86,11 +88,47 @@ const startWorker = async () => {
     );
   });
 
-  transcriptionWorker.on("failed", (job, error) => {
+  transcriptionWorker.on("failed", async (job, error) => {
     console.error(
       `Job ${job?.id} failed:`,
       error.message
     );
+
+    if (!job) {
+      return;
+    }
+
+    const maxAttempts = job.opts.attempts || 1;
+
+    const isFinalAttempt =
+      job.attemptsMade >= maxAttempts;
+
+    if (!isFinalAttempt) {
+      console.log(
+        `Job ${job.id} will be retried. Attempt ${job.attemptsMade} of ${maxAttempts}`
+      );
+
+      return;
+    }
+
+    const { meetingId } = job.data;
+
+    try {
+      await updateMeetingFailure(
+        meetingId,
+        "TRANSCRIPTION_FAILED",
+        error.message
+      );
+
+      console.log(
+        `Meeting ${meetingId} marked as FAILED`
+      );
+    } catch (updateError) {
+      console.error(
+        `Failed to update meeting failure status:`,
+        updateError.message
+      );
+    }
   });
 
   console.log("Transcription worker started");

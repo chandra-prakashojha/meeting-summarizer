@@ -9,19 +9,24 @@ const {
   summarizeTranscript,
 } = require("../services/summarization.service");
 
+
 const {
   findMeetingById,
   updateMeetingAnalysis,
+  updateMeetingFailure,
+  updateMeetingStatus,
 } = require("../repositories/meeting.repository");
 
+
 const startWorker = async () => {
-  // Connect to MongoDB before processing jobs
   await connectDatabase();
 
   const summarizationWorker = new Worker(
     "summarization",
     async (job) => {
-      console.log(`Processing summarization job: ${job.id}`);
+      console.log(
+        `Processing summarization job: ${job.id}`
+      );
 
       const { meetingId } = job.data;
 
@@ -29,7 +34,7 @@ const startWorker = async () => {
         throw new Error("Meeting ID is required.");
       }
 
-      // Get meeting from MongoDB
+      // 1. Get meeting from MongoDB
       const meeting = await findMeetingById(meetingId);
 
       if (!meeting) {
@@ -44,7 +49,19 @@ const startWorker = async () => {
         );
       }
 
-      // Generate summary and analysis
+
+
+await updateMeetingStatus(
+  meetingId,
+  "ANALYZING"
+);
+
+console.log(
+  `Meeting ${meetingId} status: ANALYZING`
+);
+
+
+      // 2. Generate summary and analysis
       const analysis = await summarizeTranscript(
         meeting.transcript
       );
@@ -53,7 +70,7 @@ const startWorker = async () => {
         `Summarization completed for meeting: ${meetingId}`
       );
 
-      // Save analysis to MongoDB
+      // 3. Save analysis to MongoDB
       const updatedMeeting =
         await updateMeetingAnalysis(
           meetingId,
@@ -86,11 +103,47 @@ const startWorker = async () => {
     );
   });
 
-  summarizationWorker.on("failed", (job, error) => {
+  summarizationWorker.on("failed", async (job, error) => {
     console.error(
       `Summarization job ${job?.id} failed:`,
       error.message
     );
+
+    if (!job) {
+      return;
+    }
+
+    const maxAttempts = job.opts.attempts || 1;
+
+    const isFinalAttempt =
+      job.attemptsMade >= maxAttempts;
+
+    if (!isFinalAttempt) {
+      console.log(
+        `Summarization job ${job.id} will be retried. Attempt ${job.attemptsMade} of ${maxAttempts}`
+      );
+
+      return;
+    }
+
+    const { meetingId } = job.data;
+
+    try {
+      await updateMeetingFailure(
+        meetingId,
+        "SUMMARIZATION_FAILED",
+        error.message
+      );
+
+      console.log(
+        `Meeting ${meetingId} marked as FAILED`
+      );
+    } catch (updateError) {
+      console.error(
+        `Failed to update meeting failure status:`,
+        updateError.message
+      );
+    }
   });
 
   console.log("Summarization worker started");

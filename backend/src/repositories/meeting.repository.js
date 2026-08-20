@@ -63,10 +63,54 @@ const updateMeetingAnalysis = async (meetingId, analysis) => {
   return meeting;
 };
 
+const updateMeetingFailure = async (
+  meetingId,
+  errorCode,
+  errorMessage
+) => {
+  const meeting = await Meeting.findByIdAndUpdate(
+    meetingId,
+    {
+      $set: {
+        status: "FAILED",
+        "error.code": errorCode,
+        "error.message": errorMessage,
+      },
+    },
+    {
+      returnDocument: "after",
+      runValidators: true,
+    }
+  );
+
+  return meeting;
+};
+
+const updateMeetingStatus = async (meetingId, status) => {
+  const meeting = await Meeting.findByIdAndUpdate(
+    meetingId,
+    {
+      $set: {
+        status,
+        "error.code": null,
+        "error.message": null,
+      },
+    },
+    {
+      returnDocument: "after",
+      runValidators: true,
+    }
+  );
+
+  return meeting;
+};
+
 module.exports = {
   createMeeting,
   findAllMeetings,
   findMeetingById,
   updateMeetingTranscript,
   updateMeetingAnalysis,
+  updateMeetingFailure,
+  updateMeetingStatus,
 };
