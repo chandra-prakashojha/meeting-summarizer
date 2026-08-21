@@ -55,8 +55,34 @@ const getMeetingById = async (req, res, next) => {
   }
 };
 
+const deleteMeeting = async (req, res, next) => {
+  try {
+    const meeting = await meetingService.deleteMeeting(req.params.id);
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found",
+      });
+    }
+
+    // Delete the associated audio file
+    if (meeting.audio?.storagePath) {
+      await deleteFile(meeting.audio.storagePath);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Meeting deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createMeeting,
   getAllMeetings,
   getMeetingById,
+  deleteMeeting,
 };

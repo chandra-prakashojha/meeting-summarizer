@@ -26,8 +26,15 @@ const getMeetingById = async (meetingId) => {
   return meeting;
 };
 
+const deleteMeeting = async (meetingId) => {
+  const meeting = await meetingRepository.deleteMeeting(meetingId);
+
+  return meeting;
+};
+
 module.exports = {
   createMeeting,
   getAllMeetings,
   getMeetingById,
+  deleteMeeting,
 };

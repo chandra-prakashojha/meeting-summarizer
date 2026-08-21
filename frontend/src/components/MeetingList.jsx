@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import MeetingCard from "./MeetingCard";
 
@@ -6,6 +6,9 @@ const MeetingList = ({ onSelectMeeting, refreshKey }) => {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   const fetchMeetings = async () => {
     try {
@@ -26,15 +29,37 @@ const MeetingList = ({ onSelectMeeting, refreshKey }) => {
   };
 
   useEffect(() => {
-  fetchMeetings();
-}, [refreshKey]);
+    fetchMeetings();
+  }, [refreshKey]);
+
+  const filteredMeetings = useMemo(() => {
+    return meetings.filter((meeting) => {
+      const matchesSearch = meeting.title
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "ALL" ||
+        meeting.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [meetings, search, statusFilter]);
 
   if (loading) {
-    return <p className="loading-text">Loading meetings...</p>;
+    return (
+      <p className="loading-text">
+        Loading meetings...
+      </p>
+    );
   }
 
   if (error) {
-    return <p className="error-text">{error}</p>;
+    return (
+      <p className="error-text">
+        {error}
+      </p>
+    );
   }
 
   return (
@@ -42,29 +67,68 @@ const MeetingList = ({ onSelectMeeting, refreshKey }) => {
       <div className="section-header">
         <div>
           <h2>Your Meetings</h2>
-          <p>View and manage your recorded meetings.</p>
+
+          <p>
+            View and manage your recorded meetings.
+          </p>
         </div>
 
         <span className="meeting-count">
-          {meetings.length} meetings
+          {filteredMeetings.length} of {meetings.length} meetings
         </span>
       </div>
 
-      {meetings.length === 0 ? (
+      <div className="meeting-filters">
+        <div className="search-box">
+          <span>🔍</span>
+
+          <input
+            type="text"
+            placeholder="Search meetings..."
+            value={search}
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
+          />
+        </div>
+
+        <select
+          value={statusFilter}
+          onChange={(event) =>
+            setStatusFilter(event.target.value)
+          }
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="UPLOADED">Uploaded</option>
+          <option value="TRANSCRIBING">
+            Transcribing
+          </option>
+          <option value="TRANSCRIBED">
+            Transcribed
+          </option>
+          <option value="ANALYZING">Analyzing</option>
+          <option value="FAILED">Failed</option>
+        </select>
+      </div>
+
+      {filteredMeetings.length === 0 ? (
         <div className="empty-state">
-          <h3>No meetings yet</h3>
+          <h3>No meetings found</h3>
+
           <p>
-            Upload your first meeting to get started.
+            Try changing your search or status filter.
           </p>
         </div>
       ) : (
         <div className="meetings-grid">
-          {meetings.map((meeting) => (
+          {filteredMeetings.map((meeting) => (
             <MeetingCard
-              key={meeting._id}
-              meeting={meeting}
-              onSelectMeeting={onSelectMeeting}
-            />
+  key={meeting._id}
+  meeting={meeting}
+  onSelectMeeting={onSelectMeeting}
+  onDelete={fetchMeetings}
+/>
           ))}
         </div>
       )}

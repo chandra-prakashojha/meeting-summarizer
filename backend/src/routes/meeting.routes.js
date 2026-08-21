@@ -20,4 +20,6 @@ router.get("/", meetingController.getAllMeetings);
 
 router.get("/:id", meetingController.getMeetingById);
 
+router.delete("/:id", meetingController.deleteMeeting);
+
 module.exports = router;

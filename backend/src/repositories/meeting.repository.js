@@ -20,6 +20,13 @@ const findMeetingById = async (meetingId) => {
   return meeting;
 };
 
+const deleteMeeting = async (meetingId) => {
+  const meeting = await Meeting.findByIdAndDelete(meetingId);
+
+  return meeting;
+};
+
+
 const updateMeetingTranscript = async (meetingId, transcript) => {
   const meeting = await Meeting.findByIdAndUpdate(
     meetingId,
@@ -109,6 +116,7 @@ module.exports = {
   createMeeting,
   findAllMeetings,
   findMeetingById,
+  deleteMeeting,
   updateMeetingTranscript,
   updateMeetingAnalysis,
   updateMeetingFailure,
