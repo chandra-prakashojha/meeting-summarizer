@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import MeetingCard from "./MeetingCard";
 
-const MeetingList = ({ onSelectMeeting }) => {
+const MeetingList = ({ onSelectMeeting, refreshKey }) => {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,46 +26,49 @@ const MeetingList = ({ onSelectMeeting }) => {
   };
 
   useEffect(() => {
-    fetchMeetings();
-  }, []);
+  fetchMeetings();
+}, [refreshKey]);
 
   if (loading) {
-    return <p>Loading meetings...</p>;
+    return <p className="loading-text">Loading meetings...</p>;
   }
 
   if (error) {
-    return <p>{error}</p>;
+    return <p className="error-text">{error}</p>;
   }
 
   return (
-    <div>
-      <h2>Meetings</h2>
+    <section className="meetings-section">
+      <div className="section-header">
+        <div>
+          <h2>Your Meetings</h2>
+          <p>View and manage your recorded meetings.</p>
+        </div>
+
+        <span className="meeting-count">
+          {meetings.length} meetings
+        </span>
+      </div>
 
       {meetings.length === 0 ? (
-        <p>No meetings found.</p>
+        <div className="empty-state">
+          <h3>No meetings yet</h3>
+          <p>
+            Upload your first meeting to get started.
+          </p>
+        </div>
       ) : (
-        meetings.map((meeting) => (
-          <div key={meeting._id}>
-            <h3>{meeting.title}</h3>
-
-            <p>
-              Status: <strong>{meeting.status}</strong>
-            </p>
-
-            <p>
-              Created:{" "}
-              {new Date(meeting.createdAt).toLocaleString()}
-            </p>
-
-            <button
-              onClick={() => onSelectMeeting(meeting._id)}
-            >
-              View Meeting
-            </button>
-          </div>
-        ))
+        <div className="meetings-grid">
+          {meetings.map((meeting) => (
+            <MeetingCard
+              key={meeting._id}
+              meeting={meeting}
+              onSelectMeeting={onSelectMeeting}
+            />
+          ))}
+        </div>
       )}
-    </div>
+    </section>
   );
 };
 

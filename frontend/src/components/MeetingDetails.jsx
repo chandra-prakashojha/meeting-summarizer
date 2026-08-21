@@ -1,118 +1,239 @@
-
 import { useEffect, useState } from "react";
 import axios from "axios";
+import StatusBadge from "./StatusBadge";
 
 const MeetingDetails = ({ meetingId, onBack }) => {
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchMeeting = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/v1/meetings/${meetingId}`
-      );
-
-      setMeeting(response.data.data);
-    } catch (error) {
-      console.error(error);
-      setError("Failed to load meeting.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchMeeting();
+    let intervalId;
+
+    const processingStatuses = [
+      "UPLOADED",
+      "TRANSCRIBING",
+      "TRANSCRIBED",
+      "ANALYZING",
+    ];
+
+    const loadMeeting = async () => {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/v1/meetings/${meetingId}`
+        );
+
+        const meetingData = response.data.data;
+
+        setMeeting(meetingData);
+        setLoading(false);
+
+        if (processingStatuses.includes(meetingData.status)) {
+          intervalId = setInterval(async () => {
+            try {
+              const response = await axios.get(
+                `${import.meta.env.VITE_API_URL}/api/v1/meetings/${meetingId}`
+              );
+
+              const updatedMeeting = response.data.data;
+
+              setMeeting(updatedMeeting);
+
+              if (
+                !processingStatuses.includes(
+                  updatedMeeting.status
+                )
+              ) {
+                clearInterval(intervalId);
+              }
+            } catch (error) {
+              console.error(error);
+            }
+          }, 3000);
+        }
+      } catch (error) {
+        console.error(error);
+
+        setError("Failed to load meeting.");
+        setLoading(false);
+      }
+    };
+
+    loadMeeting();
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, [meetingId]);
 
   if (loading) {
-    return <p>Loading meeting...</p>;
+    return (
+      <p className="loading-text">
+        Loading meeting...
+      </p>
+    );
   }
 
   if (error) {
-    return <p>{error}</p>;
+    return (
+      <p className="error-text">
+        {error}
+      </p>
+    );
   }
 
   if (!meeting) {
-    return <p>Meeting not found.</p>;
+    return (
+      <p className="error-text">
+        Meeting not found.
+      </p>
+    );
   }
 
   return (
-    <div>
-      <button onClick={onBack}>← Back to Meetings</button>
+    <section className="details-page">
+      <button className="back-button" onClick={onBack}>
+        ← Back to Meetings
+      </button>
 
-      <h2>{meeting.title}</h2>
+      <div className="details-header">
+        <div>
+          <h1>{meeting.title}</h1>
 
-      <p>
-        Status: <strong>{meeting.status}</strong>
-      </p>
+          <p className="details-date">
+            Created{" "}
+            {new Date(meeting.createdAt).toLocaleString()}
+          </p>
+        </div>
 
-      {meeting.error?.message && (
-        <p>
-          Error: {meeting.error.message}
-        </p>
+        <StatusBadge status={meeting.status} />
+      </div>
+
+      {meeting.status !== "COMPLETED" && (
+        <div className="processing-card">
+          <h3>Meeting is being processed</h3>
+
+          <p>
+            {meeting.status === "UPLOADED" &&
+              "Your audio has been uploaded and is waiting for transcription."}
+
+            {meeting.status === "TRANSCRIBING" &&
+              "Your audio is currently being transcribed."}
+
+            {meeting.status === "TRANSCRIBED" &&
+              "Transcription is complete. AI analysis will start shortly."}
+
+            {meeting.status === "ANALYZING" &&
+              "AI is analyzing the transcript and generating your meeting summary."}
+
+            {meeting.status === "FAILED" &&
+              "Something went wrong while processing this meeting."}
+          </p>
+
+          {meeting.error?.message && (
+            <p className="error-text">
+              {meeting.error.message}
+            </p>
+          )}
+        </div>
       )}
 
-      <hr />
+      {meeting.summary && (
+        <div className="summary-card">
+          <h2>Summary</h2>
 
-      <h3>Transcript</h3>
-      <p>
-        {meeting.transcript || "Transcript is not available yet."}
-      </p>
-
-      <h3>Summary</h3>
-      <p>
-        {meeting.summary || "Summary is not available yet."}
-      </p>
-
-      <h3>Key Topics</h3>
-
-      {meeting.keyTopics?.length > 0 ? (
-        <ul>
-          {meeting.keyTopics.map((topic, index) => (
-            <li key={index}>{topic}</li>
-          ))}
-        </ul>
-      ) : (
-        <p>No key topics yet.</p>
+          <p>{meeting.summary}</p>
+        </div>
       )}
 
-      <h3>Key Decisions</h3>
+      <div className="details-grid">
+        <div className="info-card">
+          <h2>Key Topics</h2>
 
-      {meeting.keyDecisions?.length > 0 ? (
-        <ul>
-          {meeting.keyDecisions.map((decision, index) => (
-            <li key={index}>{decision}</li>
-          ))}
-        </ul>
-      ) : (
-        <p>No key decisions yet.</p>
-      )}
+          {meeting.keyTopics?.length > 0 ? (
+            <ul className="topic-list">
+              {meeting.keyTopics.map((topic, index) => (
+                <li key={index}>{topic}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted-text">
+              No key topics yet.
+            </p>
+          )}
+        </div>
 
-      <h3>Action Items</h3>
+        <div className="info-card">
+          <h2>Key Decisions</h2>
 
-      {meeting.actionItems?.length > 0 ? (
-        <ul>
-          {meeting.actionItems.map((item, index) => (
-            <li key={index}>
-              <strong>{item.task}</strong>
-              <br />
-              Assignee: {item.assignee || "Not specified"}
-              <br />
-              Deadline: {item.deadline || "Not specified"}
-              <br />
-              Priority: {item.priority}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>No action items yet.</p>
-      )}
-    </div>
+          {meeting.keyDecisions?.length > 0 ? (
+            <ul className="topic-list">
+              {meeting.keyDecisions.map(
+                (decision, index) => (
+                  <li key={index}>{decision}</li>
+                )
+              )}
+            </ul>
+          ) : (
+            <p className="muted-text">
+              No key decisions yet.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="info-card">
+        <h2>Action Items</h2>
+
+        {meeting.actionItems?.length > 0 ? (
+          <div className="action-list">
+            {meeting.actionItems.map((item, index) => (
+              <div className="action-item" key={index}>
+                <div>
+                  <h3>{item.task}</h3>
+
+                  <p>
+                    Assignee:{" "}
+                    {item.assignee || "Not specified"}
+                  </p>
+
+                  <p>
+                    Deadline:{" "}
+                    {item.deadline || "Not specified"}
+                  </p>
+                </div>
+
+                <span
+                  className={`priority priority-${item.priority.toLowerCase()}`}
+                >
+                  {item.priority}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="muted-text">
+            No action items yet.
+          </p>
+        )}
+      </div>
+
+      <div className="info-card transcript-card">
+        <h2>Transcript</h2>
+
+        {meeting.transcript ? (
+          <p className="transcript-text">
+            {meeting.transcript}
+          </p>
+        ) : (
+          <p className="muted-text">
+            Transcript is not available yet.
+          </p>
+        )}
+      </div>
+    </section>
   );
 };
 
