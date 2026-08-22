@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
+  "start": "node server.js",
+  "dev": "npm run dev:all",
+  "dev:all": "docker start meeting-summarizer-redis || true && concurrently \"nodemon server.js\" \"node src/workers/transcription.worker.js\" \"node src/workers/summarization.worker.js\""
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -25,6 +26,7 @@
     "multer": "^2.2.0"
   },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "nodemon": "^3.1.14"
   }
 }

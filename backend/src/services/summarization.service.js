@@ -39,14 +39,36 @@ The JSON must follow this exact structure:
 Rules:
 
 1. summary must be concise but informative.
+
 2. keyTopics should contain the main subjects discussed.
-3. keyDecisions should contain decisions actually made during the meeting.
-4. actionItems should contain only actual tasks or follow-ups.
-5. Do not invent information.
-6. Use null when an assignee or deadline is not mentioned.
-7. priority must be exactly one of:
+
+3. keyDecisions should contain decisions actually made or explicitly agreed upon during the meeting.
+
+4. actionItems should contain only actual tasks or follow-ups that are explicitly stated or clearly assigned in the transcript.
+
+5. Do not invent, assume, or infer information that is not supported by the transcript.
+
+6. For "assignee":
+   - Use the person's name only when the transcript explicitly identifies that person as responsible for the task.
+   - Otherwise use null.
+
+7. For "deadline":
+   - Use a deadline only when the transcript explicitly states a deadline or clearly specified time.
+   - Do not convert vague words such as "soon", "later", "sometime", or "as soon as possible" into a specific deadline.
+   - Otherwise use null.
+
+8. Do not turn general discussion, suggestions, or opinions into action items unless they clearly represent a task or follow-up.
+
+9. priority must be exactly one of:
    LOW, MEDIUM, HIGH.
-8. Return ONLY JSON. Do not use Markdown code fences.
+   Use HIGH only when:
+   - the deadline is today or tomorrow, or
+   - the transcript explicitly indicates urgency or high importance.
+   Use MEDIUM for normal actionable tasks.
+   Use LOW for tasks with low urgency.
+   Do not infer urgency unless it is explicitly supported by the transcript.
+
+10. Return ONLY JSON. Do not use Markdown code fences.
 
 Meeting transcript:
 
