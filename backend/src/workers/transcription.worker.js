@@ -16,7 +16,48 @@ const {
   updateMeetingStatus,
 } = require("../repositories/meeting.repository");
 
-const summarizationQueue = require("../queues/summarization.queue");
+const summarizationQueue = require("../queues/summarization.queue"); 
+
+ 
+const updateFailureWithRetry = async (
+  meetingId,
+  errorCode,
+  errorMessage,
+  maxRetries = 3
+) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await updateMeetingFailure(
+        meetingId,
+        errorCode,
+        errorMessage
+      );
+
+      console.log(
+        `Meeting ${meetingId} marked as FAILED`
+      );
+
+      return;
+    } catch (updateError) {
+      console.error(
+        `Failed to update meeting failure status (attempt ${attempt}/${maxRetries}):`,
+        updateError.message
+      );
+
+      if (attempt < maxRetries) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 2000 * attempt)
+        );
+      }
+    }
+  }
+
+  console.error(
+    `CRITICAL: Could not mark meeting ${meetingId} as FAILED after ${maxRetries} attempts`
+  );
+};
+
+
 
 const startWorker = async () => {
   await connectDatabase();
@@ -34,14 +75,21 @@ const startWorker = async () => {
         );
       }
 
-      // 1. Transcribe audio
+      // 1. Mark meeting as transcribing
+      await updateMeetingStatus(meetingId, "TRANSCRIBING");
+
+      console.log(
+        `Meeting ${meetingId} marked as TRANSCRIBING`
+      );
+
+      // 2. Transcribe audio
       const transcript = await transcribeAudio(audioPath);
 
       console.log(
         `Transcription completed for meeting: ${meetingId}`
       );
 
-      // 2. Save transcript
+      // 3. Save transcript
       const updatedMeeting =
         await updateMeetingTranscript(
           meetingId,
@@ -58,7 +106,7 @@ const startWorker = async () => {
         `Transcript saved for meeting: ${meetingId}`
       );
 
-      // 3. Add summarization job
+      // 4. Add summarization job
       const summarizationJob =
         await summarizationQueue.add(
           "summarize-meeting",
@@ -113,22 +161,11 @@ const startWorker = async () => {
 
     const { meetingId } = job.data;
 
-    try {
-      await updateMeetingFailure(
-        meetingId,
-        "TRANSCRIPTION_FAILED",
-        error.message
-      );
-
-      console.log(
-        `Meeting ${meetingId} marked as FAILED`
-      );
-    } catch (updateError) {
-      console.error(
-        `Failed to update meeting failure status:`,
-        updateError.message
-      );
-    }
+    await updateFailureWithRetry(
+      meetingId,
+      "TRANSCRIPTION_FAILED",
+      error.message
+    );
   });
 
   console.log("Transcription worker started");
